@@ -55,7 +55,7 @@ func (h *WSHandler) joinGame(w http.ResponseWriter, r *http.Request) {
 		Actions: make(chan *Actions, 10),
 		ID:      intUserID,
 		X:       x,
-		Y:       150,
+		Y:       346,
 	}
 	act := &Actions{
 		UserID:           intUserID,

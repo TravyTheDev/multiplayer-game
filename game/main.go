@@ -17,6 +17,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
 var id = rand.Intn(200) + 2
@@ -61,16 +62,16 @@ func (g *Game) handleMovement(player *Player) {
 	player.Dx = 0.0
 	player.Dy = 2.0
 	if ebiten.IsKeyPressed(ebiten.KeyRight) {
-		player.Dx = 2
+		player.Dx = 4
 	}
 	if ebiten.IsKeyPressed(ebiten.KeyLeft) {
-		player.Dx = -2
+		player.Dx = -4
 	}
 	if ebiten.IsKeyPressed(ebiten.KeyUp) {
-		player.Dy = -2
+		player.Dy = -4
 	}
 	if ebiten.IsKeyPressed(ebiten.KeyDown) {
-		player.Dy = 4
+		player.Dy = 6
 	}
 
 	if player.isAttack && (!isBlockedLeft && !isBlockedRight) || player.isAttackInactive || player.isBlock {
@@ -93,11 +94,11 @@ func (g *Game) handleMovement(player *Player) {
 
 	player.X += player.Dx
 	player.Y += player.Dy
-	if player.X < 1 {
-		player.X = 1
+	if player.X < -30 {
+		player.X = -30
 	}
-	if player.X > 303 {
-		player.X = 303
+	if player.X > 470 {
+		player.X = 470
 	}
 	player.hurtBox = image.Rect(int(player.X), int(player.Y), int(player.X)+16, int(player.Y)+16)
 	act := Actions{
@@ -114,6 +115,7 @@ func (g *Game) handleMovement(player *Player) {
 
 func handleXCollisions(myPlayer *Player, otherPlayer *Player) {
 	if myPlayer.hurtBox.Overlaps(otherPlayer.hurtBox) {
+		fmt.Println("OVERLAP")
 		if myPlayer.X > otherPlayer.X {
 			isCollideRight = true
 		} else {
@@ -241,175 +243,87 @@ func (g *Game) Update() error {
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
+	var player1Index int
+	var player2Index int
 	screen.Fill(color.RGBA{120, 180, 255, 255})
 
 	opts := ebiten.DrawImageOptions{}
+	opts2 := ebiten.DrawImageOptions{}
+
+	if g.player1.X > g.player2.X {
+		if g.player1.isAttackInactive {
+			player1Index = 6
+		}
+		if g.player1.isAttack {
+			player1Index = 5
+		}
+		if !g.player1.isAttack && !g.player1.isAttackInactive {
+			player1Index = 7
+		}
+
+		if g.player2.isAttackInactive {
+			player2Index = 1
+		}
+		if g.player2.isAttack {
+			player2Index = 2
+		}
+		if !g.player2.isAttack && !g.player2.isAttackInactive {
+			player2Index = 0
+		}
+	} else {
+		if g.player1.isAttackInactive {
+			player1Index = 1
+		}
+		if g.player1.isAttack {
+			player1Index = 2
+		}
+		if !g.player1.isAttack && !g.player1.isAttackInactive {
+			player1Index = 0
+		}
+
+		if g.player2.isAttackInactive {
+			player2Index = 6
+		}
+		if g.player2.isAttack {
+			player2Index = 5
+		}
+		if !g.player2.isAttack && !g.player2.isAttackInactive {
+			player2Index = 7
+		}
+	}
 
 	opts.GeoM.Translate(g.player1.X, g.player1.Y)
 	screen.DrawImage(
 		g.player1.Img.SubImage(
-			g.player1SpriteSheet.Rect(6),
+			g.player1SpriteSheet.Rect(player1Index),
 		).(*ebiten.Image),
 		&opts,
 	)
 	opts.GeoM.Reset()
 
-	opts2 := ebiten.DrawImageOptions{}
-
 	opts2.GeoM.Translate(g.player2.X, g.player2.Y)
 	screen.DrawImage(
 		g.player2.Img.SubImage(
-			g.player2SpriteSheet.Rect(0),
+			g.player2SpriteSheet.Rect(player2Index),
 		).(*ebiten.Image),
 		&opts2,
 	)
 	opts2.GeoM.Reset()
 
-	// if g.player1.X > g.player2.X {
-	// }
-
-	// if g.player1.X < g.player2.X {
-	// 	if g.player1.isAttack {
-	// 		screen.DrawImage(
-	// 			g.player1.Img.SubImage(
-	// 				image.Rect(48, 80, 64, 96),
-	// 			).(*ebiten.Image),
-	// 			&opts,
-	// 		)
-	// 	}
-	// 	if g.player1.isAttackInactive {
-	// 		screen.DrawImage(
-	// 			g.player1.Img.SubImage(
-	// 				image.Rect(48, 48, 64, 64),
-	// 			).(*ebiten.Image),
-	// 			&opts,
-	// 		)
-	// 	}
-	// 	if g.player1.isBlock {
-	// 		screen.DrawImage(
-	// 			g.player1.Img.SubImage(
-	// 				image.Rect(48, 16, 64, 32),
-	// 			).(*ebiten.Image),
-	// 			&opts,
-	// 		)
-	// 	}
-	// 	if !g.player1.isAttack && !g.player1.isBlock && !g.player1.isAttackInactive {
-	// 		screen.DrawImage(
-	// 			g.player1.Img.SubImage(
-	// 				image.Rect(48, 0, 64, 16),
-	// 			).(*ebiten.Image),
-	// 			&opts,
-	// 		)
-	// 	}
-	// } else {
-	// 	if g.player1.isAttack {
-	// 		screen.DrawImage(
-	// 			g.player1.Img.SubImage(
-	// 				image.Rect(32, 80, 48, 96),
-	// 			).(*ebiten.Image),
-	// 			&opts,
-	// 		)
-	// 	}
-	// 	if g.player1.isAttackInactive {
-	// 		screen.DrawImage(
-	// 			g.player1.Img.SubImage(
-	// 				image.Rect(32, 48, 48, 64),
-	// 			).(*ebiten.Image),
-	// 			&opts,
-	// 		)
-	// 	}
-	// 	if g.player1.isBlock {
-	// 		screen.DrawImage(
-	// 			g.player1.Img.SubImage(
-	// 				image.Rect(32, 16, 48, 32),
-	// 			).(*ebiten.Image),
-	// 			&opts,
-	// 		)
-	// 	}
-	// 	if !g.player1.isAttack && !g.player1.isBlock && !g.player1.isAttackInactive {
-	// 		screen.DrawImage(
-	// 			g.player1.Img.SubImage(
-	// 				image.Rect(32, 0, 48, 16),
-	// 			).(*ebiten.Image),
-	// 			&opts,
-	// 		)
-	// 	}
-	// }
-	// opts.GeoM.Reset()
-	// opts.GeoM.Translate(g.player2.X, g.player2.Y)
-
-	// if g.player2.X < g.player1.X {
-	// 	if g.player2.isAttack {
-	// 		screen.DrawImage(
-	// 			g.player2.Img.SubImage(
-	// 				image.Rect(48, 80, 64, 96),
-	// 			).(*ebiten.Image),
-	// 			&opts,
-	// 		)
-	// 	}
-	// 	if g.player2.isAttackInactive {
-	// 		screen.DrawImage(
-	// 			g.player2.Img.SubImage(
-	// 				image.Rect(48, 48, 64, 64),
-	// 			).(*ebiten.Image),
-	// 			&opts,
-	// 		)
-	// 	}
-	// 	if g.player2.isBlock {
-	// 		screen.DrawImage(
-	// 			g.player2.Img.SubImage(
-	// 				image.Rect(48, 16, 64, 32),
-	// 			).(*ebiten.Image),
-	// 			&opts,
-	// 		)
-	// 	}
-	// 	if !g.player2.isAttack && !g.player2.isBlock && !g.player2.isAttackInactive {
-	// 		screen.DrawImage(
-	// 			g.player2.Img.SubImage(
-	// 				image.Rect(48, 0, 64, 16),
-	// 			).(*ebiten.Image),
-	// 			&opts,
-	// 		)
-	// 	}
-	// } else {
-	// 	if g.player2.isAttack {
-	// 		screen.DrawImage(
-	// 			g.player2.Img.SubImage(
-	// 				image.Rect(32, 80, 48, 96),
-	// 			).(*ebiten.Image),
-	// 			&opts,
-	// 		)
-	// 	}
-	// 	if g.player2.isAttackInactive {
-	// 		screen.DrawImage(
-	// 			g.player2.Img.SubImage(
-	// 				image.Rect(32, 48, 48, 64),
-	// 			).(*ebiten.Image),
-	// 			&opts,
-	// 		)
-	// 	}
-	// 	if g.player2.isBlock {
-	// 		screen.DrawImage(
-	// 			g.player2.Img.SubImage(
-	// 				image.Rect(32, 16, 48, 32),
-	// 			).(*ebiten.Image),
-	// 			&opts,
-	// 		)
-	// 	}
-	// 	if !g.player2.isAttack && !g.player2.isBlock && !g.player2.isAttackInactive {
-	// 		screen.DrawImage(
-	// 			g.player2.Img.SubImage(
-	// 				image.Rect(32, 0, 48, 16),
-	// 			).(*ebiten.Image),
-	// 			&opts,
-	// 		)
-	// 	}
-	// 	opts.GeoM.Reset()
-	// }
+	vector.StrokeRect(
+		screen,
+		float32(g.player2.hurtBox.Min.X),
+		float32(g.player2.hurtBox.Min.Y),
+		float32(g.player2.hurtBox.Dx()),
+		float32(g.player2.hurtBox.Dy()),
+		1.0,
+		color.RGBA{255, 0, 0, 255},
+		true,
+	)
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
-	return 320, 240
+	return 640, 480
 }
 
 func Connect() *websocket.Conn {
@@ -442,30 +356,30 @@ func main() {
 	ebiten.SetWindowSize(640, 480)
 	ebiten.SetWindowTitle("Hello, World!")
 
-	player1Img, _, err := ebitenutil.NewImageFromFile("assets/images/Char_3.png")
+	player1Img, _, err := ebitenutil.NewImageFromFile("assets/images/spritesheet.png")
 	if err != nil {
 		log.Fatal(err)
 	}
-	player2Img, _, err := ebitenutil.NewImageFromFile("assets/images/Char_3_No_Armor.png")
+	player2Img, _, err := ebitenutil.NewImageFromFile("assets/images/spritesheet.png")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	player1SpriteSheet := sprites.NewSpriteSheet(18, 7, 64)
-	player2SpriteSheet := sprites.NewSpriteSheet(18, 7, 64)
+	player1SpriteSheet := sprites.NewSpriteSheet(4, 2, 200, 140)
+	player2SpriteSheet := sprites.NewSpriteSheet(4, 2, 200, 140)
 
 	if err := ebiten.RunGame(&Game{
 		conn: conn,
 		player1: &Player{
 			Img:  player1Img,
 			X:    50,
-			Y:    200,
+			Y:    346,
 			IsMe: isPlayer1,
 			hurtBox: image.Rect(
 				50,
-				200,
+				346,
 				50+16,
-				150+15,
+				346+16,
 			),
 			isAttack:         false,
 			isAttackInactive: false,
@@ -475,13 +389,13 @@ func main() {
 		player2: &Player{
 			Img:  player2Img,
 			X:    150,
-			Y:    200,
+			Y:    346,
 			IsMe: !isPlayer1,
 			hurtBox: image.Rect(
 				150,
-				200,
+				346,
 				150+16,
-				150+16,
+				346+16,
 			),
 			isAttack:         false,
 			isAttackInactive: false,
@@ -489,8 +403,8 @@ func main() {
 		},
 		player2SpriteSheet: player2SpriteSheet,
 		colliders: []image.Rectangle{
-			image.Rect(0, 0, 320, 1),
-			image.Rect(-10, 220, 330, 240),
+			image.Rect(-80, -1, 660, -5),
+			image.Rect(-80, 440, 660, 360),
 		},
 	}); err != nil {
 		log.Fatal(err)
