@@ -17,7 +17,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
 var id = rand.Intn(200) + 2
@@ -26,6 +25,7 @@ var isBlockedLeft bool
 var isBlockedRight bool
 var isCollideLeft bool
 var isCollideRight bool
+var isHit bool
 
 type Actions struct {
 	UserID           int     `json:"id"`
@@ -34,6 +34,7 @@ type Actions struct {
 	IsAttack         bool    `json:"isAttack"`
 	IsAttackInactive bool    `json:"isAttackInactive"`
 	IsBlock          bool    `json:"isBlock"`
+	IsHit            bool    `json:"isHit"`
 }
 
 type Player struct {
@@ -44,9 +45,11 @@ type Player struct {
 	Dy               float64
 	IsMe             bool
 	hurtBox          image.Rectangle
+	hitBox           image.Rectangle
 	isAttack         bool
 	isAttackInactive bool
 	isBlock          bool
+	isHit            bool
 }
 
 type Game struct {
@@ -100,13 +103,14 @@ func (g *Game) handleMovement(player *Player) {
 	if player.X > 470 {
 		player.X = 470
 	}
-	player.hurtBox = image.Rect(int(player.X), int(player.Y), int(player.X)+16, int(player.Y)+16)
 	act := Actions{
-		UserID:   id,
-		MoveX:    player.X,
-		MoveY:    player.Y,
-		IsAttack: player.isAttack,
-		IsBlock:  player.isBlock,
+		UserID:           id,
+		MoveX:            player.X,
+		MoveY:            player.Y,
+		IsAttack:         player.isAttack,
+		IsAttackInactive: player.isAttackInactive,
+		IsBlock:          player.isBlock,
+		IsHit:            isHit,
 	}
 	if err := g.conn.WriteJSON(act); err != nil {
 		fmt.Println(err)
@@ -115,15 +119,22 @@ func (g *Game) handleMovement(player *Player) {
 
 func handleXCollisions(myPlayer *Player, otherPlayer *Player) {
 	if myPlayer.hurtBox.Overlaps(otherPlayer.hurtBox) {
-		fmt.Println("OVERLAP")
 		if myPlayer.X > otherPlayer.X {
 			isCollideRight = true
 		} else {
 			isCollideLeft = true
 		}
-		if myPlayer.isAttack && !otherPlayer.isBlock {
-			fmt.Println("attack hit")
+		if myPlayer.Dx > 0.0 && myPlayer.X < otherPlayer.X {
+			myPlayer.X = float64(otherPlayer.hurtBox.Min.X) - 16.0
+		} else if myPlayer.Dx < 0.0 && myPlayer.X > otherPlayer.X {
+			myPlayer.X = float64(otherPlayer.hurtBox.Max.X)
 		}
+	} else {
+		isCollideRight = false
+		isCollideLeft = false
+	}
+
+	if myPlayer.hitBox.Overlaps(otherPlayer.hurtBox) {
 		if myPlayer.isAttack && otherPlayer.isBlock {
 			if myPlayer.X > otherPlayer.X {
 				isBlockedRight = true
@@ -131,18 +142,18 @@ func handleXCollisions(myPlayer *Player, otherPlayer *Player) {
 				isBlockedLeft = true
 			}
 		}
-		// if myPlayer.Dx > 0.0 && myPlayer.X < otherPlayer.X {
-		// 	myPlayer.X = float64(otherPlayer.hurtBox.Min.X) - 16.0
-		// } else if myPlayer.Dx < 0.0 && myPlayer.X > otherPlayer.X {
-		// 	myPlayer.X = float64(otherPlayer.hurtBox.Max.X)
-		// }
 	} else {
 		isBlockedRight = false
 		isBlockedLeft = false
-		isCollideRight = false
-		isCollideLeft = false
 	}
 
+	if otherPlayer.hitBox.Overlaps(myPlayer.hurtBox) {
+		if otherPlayer.isAttack && !myPlayer.isBlock {
+			isHit = true
+		} else {
+			isHit = false
+		}
+	}
 }
 
 // func handleYCollisions(myPlayer *Player, otherPlayer *Player) {
@@ -218,9 +229,10 @@ func (g *Game) Update() error {
 	}
 	otherPlayer.X = action.MoveX
 	otherPlayer.Y = action.MoveY - 2
-	otherPlayer.hurtBox = image.Rect(int(otherPlayer.X), int(otherPlayer.Y), int(otherPlayer.X)+16, int(otherPlayer.Y)+16)
 	otherPlayer.isAttack = action.IsAttack
+	otherPlayer.isAttackInactive = action.IsAttackInactive
 	otherPlayer.isBlock = action.IsBlock
+	otherPlayer.isHit = action.IsHit
 
 	for _, collider := range g.colliders {
 		if collider.Overlaps(image.Rect(
@@ -251,13 +263,22 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	opts2 := ebiten.DrawImageOptions{}
 
 	if g.player1.X > g.player2.X {
+		g.player1.hurtBox = image.Rect(int(g.player1.X)+93, int(g.player1.Y)+57, int(g.player1.X)+93+16, int(g.player1.Y)+57+16)
+		g.player2.hurtBox = image.Rect(int(g.player2.X)+90, int(g.player2.Y)+57, int(g.player2.X)+90+16, int(g.player2.Y)+57+16)
+
+		g.player1.hitBox = image.Rect(int(g.player1.X)+43, int(g.player1.Y)+77, int(g.player1.X)+43+16, int(g.player1.Y)+77+16)
+		g.player2.hitBox = image.Rect(int(g.player2.X)+140, int(g.player2.Y)+77, int(g.player2.X)+140+16, int(g.player2.Y)+77+16)
+
 		if g.player1.isAttackInactive {
 			player1Index = 6
 		}
 		if g.player1.isAttack {
 			player1Index = 5
 		}
-		if !g.player1.isAttack && !g.player1.isAttackInactive {
+		if g.player1.isHit {
+			player1Index = 4
+		}
+		if !g.player1.isAttack && !g.player1.isAttackInactive && !g.player1.isHit {
 			player1Index = 7
 		}
 
@@ -267,17 +288,29 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		if g.player2.isAttack {
 			player2Index = 2
 		}
-		if !g.player2.isAttack && !g.player2.isAttackInactive {
+		if g.player2.isHit {
+			player2Index = 3
+		}
+		if !g.player2.isAttack && !g.player2.isAttackInactive && !g.player2.isHit {
 			player2Index = 0
 		}
 	} else {
+		g.player1.hurtBox = image.Rect(int(g.player1.X)+90, int(g.player1.Y)+57, int(g.player1.X)+90+16, int(g.player1.Y)+57+16)
+		g.player2.hurtBox = image.Rect(int(g.player2.X)+93, int(g.player2.Y)+57, int(g.player2.X)+93+16, int(g.player2.Y)+57+16)
+
+		g.player1.hitBox = image.Rect(int(g.player1.X)+140, int(g.player1.Y)+77, int(g.player1.X)+140+16, int(g.player1.Y)+77+16)
+		g.player2.hitBox = image.Rect(int(g.player2.X)+43, int(g.player2.Y)+77, int(g.player2.X)+43+16, int(g.player2.Y)+77+16)
+
 		if g.player1.isAttackInactive {
 			player1Index = 1
 		}
 		if g.player1.isAttack {
 			player1Index = 2
 		}
-		if !g.player1.isAttack && !g.player1.isAttackInactive {
+		if g.player1.isHit {
+			player1Index = 3
+		}
+		if !g.player1.isAttack && !g.player1.isAttackInactive && !g.player1.isHit {
 			player1Index = 0
 		}
 
@@ -287,7 +320,10 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		if g.player2.isAttack {
 			player2Index = 5
 		}
-		if !g.player2.isAttack && !g.player2.isAttackInactive {
+		if g.player2.isHit {
+			player2Index = 4
+		}
+		if !g.player2.isAttack && !g.player2.isAttackInactive && !g.player2.isHit {
 			player2Index = 7
 		}
 	}
@@ -309,17 +345,6 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		&opts2,
 	)
 	opts2.GeoM.Reset()
-
-	vector.StrokeRect(
-		screen,
-		float32(g.player2.hurtBox.Min.X),
-		float32(g.player2.hurtBox.Min.Y),
-		float32(g.player2.hurtBox.Dx()),
-		float32(g.player2.hurtBox.Dy()),
-		1.0,
-		color.RGBA{255, 0, 0, 255},
-		true,
-	)
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
@@ -356,11 +381,11 @@ func main() {
 	ebiten.SetWindowSize(640, 480)
 	ebiten.SetWindowTitle("Hello, World!")
 
-	player1Img, _, err := ebitenutil.NewImageFromFile("assets/images/spritesheet.png")
+	player1Img, _, err := ebitenutil.NewImageFromFile("assets/images/spritesheet2.png")
 	if err != nil {
 		log.Fatal(err)
 	}
-	player2Img, _, err := ebitenutil.NewImageFromFile("assets/images/spritesheet.png")
+	player2Img, _, err := ebitenutil.NewImageFromFile("assets/images/spritesheet2.png")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -376,14 +401,21 @@ func main() {
 			Y:    346,
 			IsMe: isPlayer1,
 			hurtBox: image.Rect(
-				50,
-				346,
-				50+16,
-				346+16,
+				140,
+				401,
+				140+16,
+				401+16,
+			),
+			hitBox: image.Rect(
+				190,
+				421,
+				190+16,
+				421+16,
 			),
 			isAttack:         false,
 			isAttackInactive: false,
-			isBlock:          true,
+			isBlock:          false,
+			isHit:            false,
 		},
 		player1SpriteSheet: player1SpriteSheet,
 		player2: &Player{
@@ -392,14 +424,21 @@ func main() {
 			Y:    346,
 			IsMe: !isPlayer1,
 			hurtBox: image.Rect(
-				150,
-				346,
-				150+16,
-				346+16,
+				243,
+				401,
+				243+16,
+				401+16,
+			),
+			hitBox: image.Rect(
+				193,
+				421,
+				193+16,
+				421+16,
 			),
 			isAttack:         false,
 			isAttackInactive: false,
 			isBlock:          false,
+			isHit:            false,
 		},
 		player2SpriteSheet: player2SpriteSheet,
 		colliders: []image.Rectangle{

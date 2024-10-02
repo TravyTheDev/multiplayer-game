@@ -9,6 +9,7 @@ type Actions struct {
 	IsAttack         bool    `json:"isAttack"`
 	IsAttackInactive bool    `json:"isAttackInactive"`
 	IsBlock          bool    `json:"isBlock"`
+	IsHit            bool    `json:"isHit"`
 }
 
 type Client struct {

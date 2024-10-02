@@ -64,6 +64,7 @@ func (h *WSHandler) joinGame(w http.ResponseWriter, r *http.Request) {
 		IsAttack:         false,
 		IsAttackInactive: false,
 		IsBlock:          false,
+		IsHit:            false,
 	}
 	h.hub.Register <- cl
 	h.hub.Broadcast <- act
