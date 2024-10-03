@@ -64,21 +64,20 @@ type Game struct {
 
 func handleDash(num float64) float64 {
 	if isDash {
-		num *= 3
+		num *= 5
 	}
 	return num
 }
 
 func (g *Game) handleMovement(player *Player) {
-	isDash = false
 	player.Dx = 0.0
 	player.Dy = 2.0
-	if ebiten.IsKeyPressed(ebiten.KeyE) {
+	if inpututil.IsKeyJustPressed(ebiten.KeyE) {
 		dashTimeStart = time.Now()
 		isDash = true
-		if time.Since(dashTimeStart) > time.Duration(300)*time.Millisecond {
-			isDash = false
-		}
+	}
+	if time.Since(dashTimeStart) > time.Duration(100)*time.Millisecond {
+		isDash = false
 	}
 	if ebiten.IsKeyPressed(ebiten.KeyRight) {
 		player.Dx = 4
