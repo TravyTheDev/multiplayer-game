@@ -25,7 +25,8 @@ var isBlockedLeft bool
 var isBlockedRight bool
 var isCollideLeft bool
 var isCollideRight bool
-var isHit bool
+var isDash bool
+var dashTimeStart time.Time
 
 type Actions struct {
 	UserID           int     `json:"id"`
@@ -61,9 +62,24 @@ type Game struct {
 	colliders          []image.Rectangle
 }
 
+func handleDash(num float64) float64 {
+	if isDash {
+		num *= 3
+	}
+	return num
+}
+
 func (g *Game) handleMovement(player *Player) {
+	isDash = false
 	player.Dx = 0.0
 	player.Dy = 2.0
+	if ebiten.IsKeyPressed(ebiten.KeyE) {
+		dashTimeStart = time.Now()
+		isDash = true
+		if time.Since(dashTimeStart) > time.Duration(300)*time.Millisecond {
+			isDash = false
+		}
+	}
 	if ebiten.IsKeyPressed(ebiten.KeyRight) {
 		player.Dx = 4
 	}
@@ -77,7 +93,7 @@ func (g *Game) handleMovement(player *Player) {
 		player.Dy = 6
 	}
 
-	if player.isAttack && (!isBlockedLeft && !isBlockedRight) || player.isAttackInactive || player.isBlock {
+	if player.isAttack && (!isBlockedLeft && !isBlockedRight && !isDash) || player.isAttackInactive || player.isBlock {
 		player.Dx = 0
 	}
 
@@ -95,14 +111,15 @@ func (g *Game) handleMovement(player *Player) {
 		player.Dx = -0.5
 	}
 
-	player.X += player.Dx
-	player.Y += player.Dy
+	player.X += handleDash(player.Dx)
+	player.Y += handleDash(player.Dy)
 	if player.X < -30 {
 		player.X = -30
 	}
 	if player.X > 470 {
 		player.X = 470
 	}
+
 	act := Actions{
 		UserID:           id,
 		MoveX:            player.X,
@@ -110,7 +127,7 @@ func (g *Game) handleMovement(player *Player) {
 		IsAttack:         player.isAttack,
 		IsAttackInactive: player.isAttackInactive,
 		IsBlock:          player.isBlock,
-		IsHit:            isHit,
+		IsHit:            player.isHit,
 	}
 	if err := g.conn.WriteJSON(act); err != nil {
 		fmt.Println(err)
@@ -121,13 +138,8 @@ func handleXCollisions(myPlayer *Player, otherPlayer *Player) {
 	if myPlayer.hurtBox.Overlaps(otherPlayer.hurtBox) {
 		if myPlayer.X > otherPlayer.X {
 			isCollideRight = true
-		} else {
+		} else if myPlayer.X < otherPlayer.X {
 			isCollideLeft = true
-		}
-		if myPlayer.Dx > 0.0 && myPlayer.X < otherPlayer.X {
-			myPlayer.X = float64(otherPlayer.hurtBox.Min.X) - 16.0
-		} else if myPlayer.Dx < 0.0 && myPlayer.X > otherPlayer.X {
-			myPlayer.X = float64(otherPlayer.hurtBox.Max.X)
 		}
 	} else {
 		isCollideRight = false
@@ -149,27 +161,19 @@ func handleXCollisions(myPlayer *Player, otherPlayer *Player) {
 
 	if otherPlayer.hitBox.Overlaps(myPlayer.hurtBox) {
 		if otherPlayer.isAttack && !myPlayer.isBlock {
-			isHit = true
-		} else {
-			isHit = false
+			myPlayer.isHit = true
 		}
+	} else {
+		myPlayer.isHit = false
+	}
+	if myPlayer.hitBox.Overlaps(otherPlayer.hurtBox) {
+		if myPlayer.isAttack && !otherPlayer.isBlock {
+			otherPlayer.isHit = true
+		}
+	} else {
+		otherPlayer.isHit = false
 	}
 }
-
-// func handleYCollisions(myPlayer *Player, otherPlayer *Player) {
-// 	if myPlayer.hurtBox.Overlaps(image.Rect(
-// 		int(otherPlayer.X),
-// 		int(otherPlayer.Y),
-// 		int(otherPlayer.X)+16,
-// 		int(otherPlayer.Y)+16,
-// 	)) {
-// 		if myPlayer.Dy > 0.0 && myPlayer.Y < otherPlayer.Y {
-// 			myPlayer.Y = float64(otherPlayer.hurtBox.Min.Y) - 16.0
-// 		} else if myPlayer.Dy < 0.0 && myPlayer.Y > otherPlayer.X {
-// 			myPlayer.Y = float64(otherPlayer.hurtBox.Max.Y)
-// 		}
-// 	}
-// }
 
 func (g *Game) HandleAttackAndBlock(myPlayer *Player, otherPlayer *Player) {
 	if inpututil.IsKeyJustPressed(ebiten.KeySpace) && !myPlayer.isBlock {
@@ -250,7 +254,6 @@ func (g *Game) Update() error {
 	}
 	handleXCollisions(myPlayer, otherPlayer)
 
-	// handleYCollisions(myPlayer, otherPlayer)
 	return nil
 }
 
