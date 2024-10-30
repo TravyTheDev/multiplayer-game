@@ -1,4 +1,4 @@
-### Kick Him in the Middle
+# Kick Him in the Middle
 
 This is an online fighting game made with a Go server and Ebitengine.
 
